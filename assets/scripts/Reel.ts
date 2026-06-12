@@ -1,28 +1,44 @@
-import { _decorator, Component, Vec3 } from 'cc';
+import { _decorator, Component, Node, Vec3 } from 'cc';
 const { ccclass } = _decorator;
 
 @ccclass('Reel')
 export class Reel extends Component {
 
-    private startY: number = 0;
-
-    start() {
-        this.startY = this.node.position.y;
-    }
+    private speed = 300;
 
     update(dt: number) {
+        this.scroll(dt);
+    }
 
-        // ✅ clone position (IMPORTANT)
-        let pos = new Vec3(this.node.position.x, this.node.position.y, this.node.position.z);
+    scroll(dt: number) {
+        const children = this.node.children;
 
-        // move down
-        pos.y -= 300 * dt;
+        for (let i = 0; i < children.length; i++) {
+            let item = children[i];
 
-        // reset
-        if (pos.y < -800) {
-            pos.y = this.startY;
+            let pos = item.position.clone();
+            pos.y -= this.speed * dt;
+
+            item.setPosition(pos);
+
+            // ❗ အောက်ကျသွားရင် recycle
+            if (pos.y < -300) {
+                this.recycleItem(item);
+            }
         }
+    }
 
-        this.node.setPosition(pos);
+    recycleItem(item: Node) {
+        const children = this.node.children;
+
+        // အပေါ်ဆုံး symbol ရှာ
+        let top = children.reduce((a, b) =>
+            a.position.y > b.position.y ? a : b
+        );
+
+        let pos = top.position.clone();
+
+        // အပေါ်မှာတစ်ခုတင်
+        item.setPosition(pos.x, pos.y + 150, pos.z);
     }
 }
