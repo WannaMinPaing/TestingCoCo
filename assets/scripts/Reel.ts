@@ -11,7 +11,7 @@ enum ReelState {
 export class Reel extends Component {
 
     private speed = 0;
-    private maxSpeed = 1200;
+    private maxSpeed = 500;
     private acceleration = 2000;
 
     private state: ReelState = ReelState.IDLE;
@@ -58,7 +58,7 @@ export class Reel extends Component {
 
             item.setPosition(pos);
 
-            if (pos.y < -300) {
+            if (pos.y < -400) {
                 this.recycleItem(item);
             }
         }
@@ -72,6 +72,6 @@ export class Reel extends Component {
         );
 
         let pos = top.position.clone();
-        item.setPosition(pos.x, pos.y + 150, pos.z);
+        item.setPosition(pos.x, pos.y + 100, pos.z);
     }
 }
