@@ -1,10 +1,16 @@
 import { _decorator, Component, Node, Vec3 } from 'cc';
-const { ccclass } = _decorator;
+
+const { ccclass, property } = _decorator;
 
 enum ReelState {
     IDLE,
     SPINNING,
     STOPPING
+}
+
+@ccclass('SymbolData')
+class SymbolData {
+    public name: string = "";
 }
 
 @ccclass('Reel')
@@ -14,8 +20,20 @@ export class Reel extends Component {
     private maxSpeed = 500;
     private acceleration = 2000;
 
+    private itemHeight = 100;
+
     private state: ReelState = ReelState.IDLE;
 
+    private targetY: number = 0;
+    private isSnapping = false;
+
+    // 👉 Inspector မှာ assign လုပ်မယ်
+    @property([SymbolData])
+    public symbolData: SymbolData[] = [];
+
+    // -------------------------
+    // SPIN
+    // -------------------------
     startSpin() {
         this.state = ReelState.SPINNING;
     }
@@ -24,15 +42,45 @@ export class Reel extends Component {
         this.state = ReelState.STOPPING;
     }
 
-    update(dt: number) {
-        this.updateSpeed(dt);
-        this.scroll(dt);
+    // -------------------------
+    // STOP WITH RESULT
+    // -------------------------
+    stopSpinWithResult(result: string[]) {
+
+        this.state = ReelState.STOPPING;
+
+        const targetSymbol = result[0];
+
+        const index = this.symbolData.findIndex(s => s.name === targetSymbol);
+
+        this.targetY = this.getTargetY(index);
+
+        this.isSnapping = true;
+
+        console.log("Snap to:", targetSymbol, "Y:", this.targetY);
     }
 
+    // -------------------------
+    // UPDATE LOOP
+    // -------------------------
+    update(dt: number) {
+
+        this.updateSpeed(dt);
+        this.scroll(dt);
+
+        if (this.isSnapping) {
+            this.snapToTarget(dt);
+        }
+    }
+
+    // -------------------------
+    // SPEED CONTROL
+    // -------------------------
     updateSpeed(dt: number) {
 
         if (this.state === ReelState.SPINNING) {
             this.speed += this.acceleration * dt;
+
             if (this.speed > this.maxSpeed) {
                 this.speed = this.maxSpeed;
             }
@@ -40,6 +88,7 @@ export class Reel extends Component {
 
         if (this.state === ReelState.STOPPING) {
             this.speed -= this.acceleration * dt;
+
             if (this.speed < 0) {
                 this.speed = 0;
                 this.state = ReelState.IDLE;
@@ -47,13 +96,17 @@ export class Reel extends Component {
         }
     }
 
+    // -------------------------
+    // SCROLL
+    // -------------------------
     scroll(dt: number) {
+
         const children = this.node.children;
 
-        for (let i = 0; i < children.length; i++) {
-            let item = children[i];
+        for (let item of children) {
 
             let pos = item.position.clone();
+
             pos.y -= this.speed * dt;
 
             item.setPosition(pos);
@@ -64,7 +117,11 @@ export class Reel extends Component {
         }
     }
 
+    // -------------------------
+    // RECYCLE (infinite loop)
+    // -------------------------
     recycleItem(item: Node) {
+
         const children = this.node.children;
 
         let top = children.reduce((a, b) =>
@@ -72,6 +129,39 @@ export class Reel extends Component {
         );
 
         let pos = top.position.clone();
-        item.setPosition(pos.x, pos.y + 100, pos.z);
+
+        item.setPosition(pos.x, pos.y + this.itemHeight, pos.z);
+    }
+
+    // -------------------------
+    // SYMBOL POSITION
+    // -------------------------
+    getTargetY(index: number): number {
+        return index * -this.itemHeight;
+    }
+
+    // -------------------------
+    // SNAP SYSTEM (FINAL STOP)
+    // -------------------------
+    snapToTarget(dt: number) {
+
+        const children = this.node.children;
+
+        for (let item of children) {
+
+            let pos = item.position.clone();
+
+            pos.y += (this.targetY - pos.y) * 10 * dt;
+
+            item.setPosition(pos);
+        }
+
+        // stop condition
+        if (Math.abs(children[0].position.y - this.targetY) < 1) {
+
+            this.isSnapping = false;
+            this.state = ReelState.IDLE;
+            this.speed = 0;
+        }
     }
 }
